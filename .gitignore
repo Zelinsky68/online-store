@@ -1,0 +1,50 @@
+# Compiled files
+*.class
+target/
+!.mvn/wrapper/maven-wrapper.jar
+
+# IDE
+.idea/
+*.iml
+*.iws
+*.ipr
+.vscode/
+.settings/
+.project
+.classpath
+.springBeans
+.sts4-cache/
+
+# Logs
+logs/
+*.log
+
+# Package files
+*.jar
+*.war
+*.ear
+*.nar
+
+# Maven
+log/
+pom.xml.tag
+pom.xml.releaseBackup
+pom.xml.versionsBackup
+pom.xml.next
+release.properties
+dependency-reduced-pom.xml
+buildNumber.properties
+.mvn/timing.properties
+.mvn/wrapper/maven-wrapper.properties
+
+# Test reports
+test-output/
+
+# OS metadata
+.DS_Store
+Thumbs.db
+
+# Application properties (if they contain sensitive data)
+# application-dev.properties
+# application-prod.properties
+# application-test.properties
