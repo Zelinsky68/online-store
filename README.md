@@ -42,3 +42,9 @@ mvn clean package
 
 # Запустить приложение
 java -jar target/online-store-*.jar
+[![Docker Image](https://ghcr.io/Zelinsky68/online-store/linux/amd64/main/badge.svg)](https://ghcr.io/Zelinsky68/online-store)
+## 🐳 Docker
+
+### Pull образ
+```bash
+docker pull ghcr.io/zelinsky68/online-store:latest
