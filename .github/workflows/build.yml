@@ -21,11 +21,11 @@ jobs:
     steps:
       # Шаг 1: Клонировать репозиторий
       - name: Checkout code
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
       
       # Шаг 2: Установить Java
       - name: Set up JDK 11
-        uses: actions/setup-java@v3
+        uses: actions/setup-java@v4
         with:
           java-version: '11'
           distribution: 'temurin'
@@ -36,7 +36,7 @@ jobs:
       
       # Шаг 4: Сохранить результат
       - name: Upload JAR
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: online-store-jar
           path: target/*.jar
