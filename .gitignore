@@ -18,7 +18,7 @@ target/
 # Logs
 logs/
 *.log
-
+*.new
 # Package files
 *.jar
 *.war
