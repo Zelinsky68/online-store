@@ -12,10 +12,11 @@ jobs:
   test:
     name: Run Tests
     runs-on: ubuntu-latest
+
     permissions:              # <--- Добавьте этот блок
       contents: read          #     (нужно для чтения кода)
-      packages: write  
- steps:
+      packages: write
+    steps:
       - name: Checkout code
         uses: actions/checkout@v4
 
