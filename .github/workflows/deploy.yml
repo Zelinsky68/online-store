@@ -1,0 +1,81 @@
+name: Deploy to Yandex Cloud Kubernetes
+on:
+  push:
+    branches: [ main ]
+env:
+  REGISTRY: cr.yandex
+  IMAGE_NAME: online-store
+  YC_REGISTRY_ID: ${{ secrets.crpfn7u4kvn0913i8kvt }}
+  YC_FOLDER_ID: ${{ b1gf454skgqelqapb950 }}
+  YC_CLUSTER_ID: ${{ secrets.catcjsnfbo3nh4r5118l }}
+jobs:
+  deploy:
+    name: Build and Deploy
+    runs-on: ubuntu-latest
+    steps:
+      # 1. Клонируем код
+      - name: Checkout code
+        uses: actions/checkout@v4
+      # 2. Сборка Java приложения
+      - name: Set up JDK 11
+        uses: actions/setup-java@v4
+        with:
+          java-version: '11'
+          distribution: 'temurin'
+      - name: Build with Maven
+        run: mvn clean package -DskipTests
+      # 3. Логин в Yandex Container Registry
+      - name: Login to Yandex CR
+        uses: yc-actions/yc-cr-login@v1
+        with:
+          yc-sa-json-credentials: ${{ secrets.{
+   "id": "ajeert29lqju6d0pp42h",
+   "service_account_id": "ajelrfu7us9acq5ovh7c",
+   "created_at": "2026-02-22T14:27:44.618025614Z",
+   "key_algorithm": "RSA_2048",
+   "public_key": "-----BEGIN PUBLIC KEY-----\nMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAhU4fbO07hzyooHof/NWi\nFx8RJLbakoZCM5+oV7sT6XNbU8d9TAac9L31H3HQ+5Oedl7nnCg05/tgncYUsEIz\n5Gj9zgJqZnhRb0bKzc0PEMxebcYd0Vbf4cx0+RJn7UumMqMTW4GqEk4LPo3BxaKR\n4QLGeFx2I5SuoWedmSNwI9e0gGZJzvl5LAl0TSiDXH7gV3qv4jsabJt9ySX0O96j\nDtHoJ+2FoxEXA1jNp3jDvyzyqZ6OAMPOH/kzUvvosNoLannEv3RbqEWn2EaWsZfK\nX4XcBKRkJZYNsQh3rTBNEl6RdLwWzhj0KgdxdOmU4NkJk6TuKTMvT3Q3QKqXJ7r+\nJQIDAQAB\n-----END PUBLIC KEY-----\n",
+   "private_key": "PLEASE DO NOT REMOVE THIS LINE! Yandex.Cloud SA Key ID \u003cajeert29lqju6d0pp42h\u003e\n-----BEGIN PRIVATE KEY-----\nMIIEvAIBADANBgkqhkiG9w0BAQEFAASCBKYwggSiAgEAAoIBAQCFTh9s7TuHPKig\neh/81aIXHxEkttqShkIzn6hXuxPpc1tTx31MBpz0vfUfcdD7k552XuecKDTn+2Cd\nxhSwQjPkaP3OAmpmeFFvRsrNzQ8QzF5txh3RVt/hzHT5EmftS6YyoxNbgaoSTgs+\njcHFopHhAsZ4XHYjlK6hZ52ZI3Aj17SAZknO+XksCXRNKINcfuBXeq/iOxpsm33J\nJfQ73qMO0egn7YWjERcDWM2neMO/LPKpno4Aw84f+TNS++iw2gtqecS/dFuoRafY\nRpaxl8pfhdwEpGQllg2xCHetME0SXpF0vBbOGPQqB3F06ZTg2QmTpO4pMy9PdDdA\nqpcnuv4lAgMBAAECggEANfwLzPSL2XouvgKHJsCralqp+ijU/mbBs59SMOkxqKaP\nUy/kJaA9+v1cofXZULCZCU3o1PwRZOsP1wUrRrAgzLzaIA4pYcMTE5HjOpHzKnXh\nPepwE+FvPEWtD1stXFN5BGO3SKULp2sUsan90ZhDJJEXqBGlxEYHrJTGJYjM9q5k\nKnsxn1B5sEqI/SzAF5GphmZkSEZzMSDgU9yrkwF6ubbl5HH8l4N3mcl9M5VRGfH8\n6i6twp/KitVSSzP1h9q5KI+XSwMjMyUesT5hjd3TiT9qNfniqAk/Wq9krlKF7Y16\nvyYFJ0M9sFjOtROJruObeBu0/PPQc5vVgkQMepSMdwKBgQC4b27HDdpxJVzH97Jt\n5AyoGFP7YnoMrLydUw2frgPurI2HPdYfeOeQNPdyuiS3ZGeqoZ9O6iKfSim8sg43\nOnGpICHOc8ARBi+HB11O+54zoHT3EhHPNBRR4lyZhydXDvrUnAE5L49T/i5ClPYH\nAJgQM61ROVwYD6WyZB1zfkeinwKBgQC5B8QpRZCDIXkF3g950NdVgZEoSdjkqcRY\nzr+Djjwb3X0pUYhJUwGPDP0/gPqMqIXzEOYp3DmMcyCRR38dBxNLewXRAm/Kf2+s\nzfMHa5gCfMWieItylOFyxW2vA1omlUaiSAJSjjBzxYXOQqrS185mWWRcoLz9m2iX\nqO/dZuBMuwKBgCkCPfNslSGLWTHtVXMxvc6yehnvL4wZ7GZezSywGJe9Lkrf6Phe\nfb6GyG5uDTPp01MRVMbLMJ+Sce1O+fI1wIgGaP3qps4iPfccIBcrw2VfTCKTlfoo\nbkw2tLg+YPTuk78qYOtCM/BNGCQd0waDj0wq8WKaCmwfLoyXziSb83mpAoGADCPi\nTwLtdG0hz6y+PzPgrQ+PQqF1xasN4vXNwwf2Ea36pFdhJc54b7Zed2gzCD+WalhV\ngbGdZQW4wU97m5/3OCCeRRRv2U17Ok9Y/sekdaVSIlLec2opUKp7g9wochehRsyK\nunfx3ea73MirBKJ8PGLpHtq9C7bCqhC/jDtPxDkCgYB1UwTmkYxkN4/MJ1lJyAks\nIdEibi2YB+hBcuhReHV6iolaKOP8+DVmhWLN4Zc0J1j4RFzwSmDXeqW0XEg9CiD4\nHtwoFzGxB0Is2+zlbZkV9k5qN+1LHEDF/2+LfUpU0aKH0pC/UaSBdstGq4c592YN\n/Kt8yWpnMG+PDF32tPwNuw==\n-----END PRIVATE KEY-----\n"
+} }}
+      # 4. Сборка и пуш Docker образа
+      - name: Build and push Docker image
+        run: |
+          SHORT_SHA=${GITHUB_SHA::7}
+          IMAGE="${{ env.REGISTRY }}/${{ env.YC_REGISTRY_ID }}/${{ env.IMAGE_NAME }}:$SHORT_SHA"
+          
+          docker build -t $IMAGE .
+          docker push $IMAGE
+          
+          # Также пушим как latest
+          docker tag $IMAGE ${{ env.REGISTRY }}/${{ env.YC_REGISTRY_ID }}/${{ env.IMAGE_NAME }}:latest
+          docker push ${{ env.REGISTRY }}/${{ env.YC_REGISTRY_ID }}/${{ env.IMAGE_NAME }}:latest
+          
+          echo "IMAGE=$IMAGE" >> $GITHUB_ENV
+      # 5. Настройка kubectl
+      - name: Setup kubectl
+        uses: yc-actions/yc-kubectl-setup@v1
+        with:
+          yc-sa-json-credentials: ${{ secrets.YC_SA_KEY_JSON }}
+          folder-id: ${{ env.YC_FOLDER_ID }}
+          cluster-id: ${{ env.YC_CLUSTER_ID }}
+      # 6. Деплой в Kubernetes
+      - name: Deploy to Kubernetes
+        run: |
+          # Обновляем тег образа в манифесте
+          sed -i "s|image:.*|image: ${{ env.IMAGE }}|g" k8s-deployment-final.yaml
+          
+          # Применяем манифест
+          kubectl apply -f k8s-deployment-final.yaml
+          
+          # Ждем завершения деплоя
+          kubectl rollout status deployment/online-store -n online-store --timeout=3m
+          
+          # Показываем статус
+          kubectl get pods -n online-store
+          kubectl get svc -n online-store
+      # 7. Проверка здоровья
+      - name: Health check
+        run: |
+          sleep 20
+          kubectl port-forward -n online-store svc/online-store-service 8080:80 &
+          sleep 5
+          curl -f http://localhost:8080/actuator/health || echo "Health check endpoint not available"
