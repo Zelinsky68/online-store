@@ -1,0 +1,62 @@
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: online-store
+  namespace: online-store
+spec:
+  replicas: 1  # Пока 1 под для стабильности
+  selector:
+    matchLabels:
+      app: online-store
+  template:
+    metadata:
+      labels:
+        app: online-store
+    spec:
+      containers:
+      - name: online-store
+        image: cr.yandex/crpfn7u4kvn0913i8kvt/online-store:latest
+        imagePullPolicy: Always
+        ports:
+        - containerPort: 8080
+        env:
+        - name: SPRING_PROFILES_ACTIVE
+          value: "production"
+        - name: SPRING_DATASOURCE_URL
+          value: "jdbc:postgresql://postgres:5432/onlinestore"
+        - name: SPRING_DATASOURCE_USERNAME
+          value: "onlinestore"
+        - name: SPRING_DATASOURCE_PASSWORD
+          value: "onlinestore123"
+        - name: SPRING_JPA_HIBERNATE_DDL_AUTO
+          value: "update"
+        # Включаем все эндпоинты actuator
+        - name: MANAGEMENT_ENDPOINTS_WEB_EXPOSURE_INCLUDE
+          value: "*"
+        - name: MANAGEMENT_ENDPOINT_HEALTH_SHOW_DETAILS
+          value: "always"
+        - name: MANAGEMENT_HEALTH_PROBES_ENABLED
+          value: "true"
+        resources:
+          requests:
+            memory: "512Mi"
+            cpu: "250m"
+          limits:
+            memory: "1Gi"
+            cpu: "500m"
+        # Временно убираем все пробы
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: online-store-service
+  namespace: online-store
+spec:
+  selector:
+    app: online-store
+  ports:
+  - protocol: TCP
+    port: 80
+    targetPort: 8080
+  type: LoadBalancer

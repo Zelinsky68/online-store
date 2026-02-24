@@ -1,80 +1,186 @@
 package com.onlinestore.service;
 
 import com.onlinestore.model.Order;
+import com.onlinestore.model.OrderItem;
+import com.onlinestore.model.Product;
 import com.onlinestore.model.User;
 import com.onlinestore.repository.OrderRepository;
+import com.onlinestore.repository.ProductRepository;
 import com.onlinestore.repository.UserRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import java.time.LocalDateTime;
+
+import java.math.BigDecimal;
 import java.util.List;
 
 @Service
-@Transactional
 public class OrderService {
-    
+
     @Autowired
     private OrderRepository orderRepository;
-    
+
     @Autowired
     private UserRepository userRepository;
-    
-    // Получить все заказы
-    public List<Order> getAllOrders() {
-        return orderRepository.findAllByOrderByOrderDateDesc();
+
+    @Autowired
+    private ProductRepository productRepository;
+
+    @Transactional
+    public Order createOrder(Long userId, String shippingAddress) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new RuntimeException("User not found"));
+        
+        // Исправлено: используем правильный конструктор
+        Order order = new Order(user, shippingAddress);
+        
+        return orderRepository.save(order);
     }
-    
-    // Получить заказ по ID
-    public Order getOrderById(Long id) {
-        return orderRepository.findById(id).orElse(null);
+
+    @Transactional
+    public Order addItemToOrder(Long orderId, Long productId, Integer quantity) {
+        Order order = orderRepository.findById(orderId)
+                .orElseThrow(() -> new RuntimeException("Order not found"));
+        
+        if (!order.canBeModified()) {
+            throw new RuntimeException("Cannot modify order in status: " + order.getStatus());
+        }
+        
+        Product product = productRepository.findById(productId)
+                .orElseThrow(() -> new RuntimeException("Product not found"));
+        
+        // Проверка наличия товара
+        if (product.getQuantity() < quantity) {
+            throw new RuntimeException("Not enough products in stock");
+        }
+        
+        // Создаем позицию заказа
+        OrderItem orderItem = new OrderItem(order, product, quantity);
+        order.addItem(orderItem);
+        
+        // Уменьшаем количество товара на складе
+        product.setQuantity(product.getQuantity() - quantity);
+        productRepository.save(product);
+        
+        return orderRepository.save(order);
     }
-    
-    // Получить заказы пользователя
-    public List<Order> getOrdersByUser(Long userId) {
+
+    @Transactional
+    public Order removeItemFromOrder(Long orderId, Long itemId) {
+        Order order = orderRepository.findById(orderId)
+                .orElseThrow(() -> new RuntimeException("Order not found"));
+        
+        if (!order.canBeModified()) {
+            throw new RuntimeException("Cannot modify order in status: " + order.getStatus());
+        }
+        
+        OrderItem itemToRemove = order.getItems().stream()
+                .filter(item -> item.getId().equals(itemId))
+                .findFirst()
+                .orElseThrow(() -> new RuntimeException("Item not found in order"));
+        
+        // Возвращаем товар на склад
+        Product product = itemToRemove.getProduct();
+        product.setQuantity(product.getQuantity() + itemToRemove.getQuantity());
+        productRepository.save(product);
+        
+        order.removeItem(itemToRemove);
+        
+        return orderRepository.save(order);
+    }
+
+    @Transactional
+    public Order updateItemQuantity(Long orderId, Long itemId, Integer newQuantity) {
+        Order order = orderRepository.findById(orderId)
+                .orElseThrow(() -> new RuntimeException("Order not found"));
+        
+        if (!order.canBeModified()) {
+            throw new RuntimeException("Cannot modify order in status: " + order.getStatus());
+        }
+        
+        OrderItem item = order.getItems().stream()
+                .filter(i -> i.getId().equals(itemId))
+                .findFirst()
+                .orElseThrow(() -> new RuntimeException("Item not found in order"));
+        
+        Product product = item.getProduct();
+        int quantityDiff = newQuantity - item.getQuantity();
+        
+        // Проверяем наличие товара при увеличении количества
+        if (quantityDiff > 0 && product.getQuantity() < quantityDiff) {
+            throw new RuntimeException("Not enough products in stock");
+        }
+        
+        // Обновляем складские остатки
+        product.setQuantity(product.getQuantity() - quantityDiff);
+        productRepository.save(product);
+        
+        // Обновляем количество в заказе
+        item.setQuantity(newQuantity);
+        
+        return orderRepository.save(order);
+    }
+
+    @Transactional(readOnly = true)
+    public Order getOrder(Long orderId) {
+        return orderRepository.findById(orderId)
+                .orElseThrow(() -> new RuntimeException("Order not found"));
+    }
+
+    @Transactional(readOnly = true)
+    public List<Order> getUserOrders(Long userId) {
         return orderRepository.findByUserId(userId);
     }
-    
-    // Создать новый заказ
-    public Order createOrder(Long userId, Double totalAmount, String shippingAddress) {
-        User user = userRepository.findById(userId).orElse(null);
-        if (user == null) {
-            throw new IllegalArgumentException("User not found with id: " + userId);
+
+    @Transactional
+    public Order updateOrderStatus(Long orderId, String status) {
+        Order order = orderRepository.findById(orderId)
+                .orElseThrow(() -> new RuntimeException("Order not found"));
+        
+        switch (status.toUpperCase()) {
+            case "PROCESSING":
+                order.process();
+                break;
+            case "SHIPPED":
+                order.ship();
+                break;
+            case "DELIVERED":
+                order.deliver();
+                break;
+            case "CANCELLED":
+                if (order.canBeCancelled()) {
+                    // Возвращаем товары на склад при отмене
+                    for (OrderItem item : order.getItems()) {
+                        Product product = item.getProduct();
+                        product.setQuantity(product.getQuantity() + item.getQuantity());
+                        productRepository.save(product);
+                    }
+                }
+                order.cancel();
+                break;
+            default:
+                throw new RuntimeException("Invalid status: " + status);
         }
         
-        Order order = new Order(user, totalAmount, shippingAddress);
         return orderRepository.save(order);
     }
-    
-    // Обновить статус заказа
-    public Order updateOrderStatus(Long orderId, String newStatus) {
-        Order order = orderRepository.findById(orderId).orElse(null);
-        if (order == null) {
-            throw new IllegalArgumentException("Order not found with id: " + orderId);
-        }
-        
-        order.setStatus(newStatus);
-        order.setUpdatedAt(LocalDateTime.now());
-        return orderRepository.save(order);
-    }
-    
-    // Отменить заказ
-    public Order cancelOrder(Long orderId) {
-        return updateOrderStatus(orderId, "CANCELLED");
-    }
-    
-    // Удалить заказ
+
+    @Transactional
     public void deleteOrder(Long orderId) {
-        orderRepository.deleteById(orderId);
-    }
-    
-    // Получить заказы по статусу
-    public List<Order> getOrdersByStatus(String status) {
-        return orderRepository.findByStatus(status);
-    }
-    
-    // Получить заказы пользователя по статусу
-    public List<Order> getUserOrdersByStatus(Long userId, String status) {
-        return orderRepository.findByUserIdAndStatus(userId, status);
+        Order order = orderRepository.findById(orderId)
+                .orElseThrow(() -> new RuntimeException("Order not found"));
+        
+        if (!order.canBeModified()) {
+            throw new RuntimeException("Cannot delete order in status: " + order.getStatus());
+        }
+        
+        // Возвращаем товары на склад
+        for (OrderItem item : order.getItems()) {
+            Product product = item.getProduct();
+            product.setQuantity(product.getQuantity() + item.getQuantity());
+            productRepository.save(product);
+        }
+        
+        orderRepository.delete(order);
     }
 }

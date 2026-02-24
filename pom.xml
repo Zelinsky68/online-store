@@ -44,7 +44,11 @@
             <artifactId>postgresql</artifactId>
             <scope>runtime</scope>
         </dependency>
-        
+        <!-- Flyway Dependency -->
+        <dependency>
+            <groupId>org.flywaydb</groupId>
+            <artifactId>flyway-core</artifactId>
+        </dependency>
         <!-- H2 Database for testing -->
         <dependency>
             <groupId>com.h2database</groupId>

@@ -1,0 +1,68 @@
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: postgres
+  namespace: online-store
+  labels:
+    app: postgres
+spec:
+  ports:
+  - port: 5432
+    name: postgres
+  selector:
+    app: postgres
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: postgres-config
+  namespace: online-store
+data:
+  POSTGRES_DB: onlinestore
+  POSTGRES_USER: onlinestore
+  POSTGRES_PASSWORD: onlinestore123
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: postgres
+  namespace: online-store
+spec:
+  serviceName: postgres
+  replicas: 1
+  selector:
+    matchLabels:
+      app: postgres
+  template:
+    metadata:
+      labels:
+        app: postgres
+    spec:
+      containers:
+      - name: postgres
+        image: postgres:15-alpine
+        ports:
+        - containerPort: 5432
+        envFrom:
+        - configMapRef:
+            name: postgres-config
+        volumeMounts:
+        - name: postgres-storage
+          mountPath: /var/lib/postgresql/data
+          subPath: postgres
+        resources:
+          requests:
+            memory: "256Mi"
+            cpu: "250m"
+          limits:
+            memory: "512Mi"
+            cpu: "500m"
+  volumeClaimTemplates:
+  - metadata:
+      name: postgres-storage
+    spec:
+      accessModes: ["ReadWriteOnce"]
+      resources:
+        requests:
+          storage: 1Gi
