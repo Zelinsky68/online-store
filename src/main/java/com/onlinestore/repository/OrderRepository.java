@@ -24,10 +24,8 @@ public interface OrderRepository extends JpaRepository<Order, Long> {
     // Найти заказы пользователя по статусу
     List<Order> findByUserIdAndStatus(Long userId, String status);
 
-    // Получить все заказы отсортированные по дате (новые сверху)
+    // Получить все заказы отсортированные по дате (НОВЫЕ СВЕРХУ) - ЭТОТ МЕТОД ДОЛЖЕН БЫТЬ ТОЛЬКО ОДИН РАЗ!
     List<Order> findAllByOrderByOrderDateDesc();
-
-    // ДОПОЛНИТЕЛЬНЫЕ ПОЛЕЗНЫЕ МЕТОДЫ:
 
     // Найти заказы за период
     List<Order> findByOrderDateBetween(LocalDateTime startDate, LocalDateTime endDate);
@@ -47,13 +45,9 @@ public interface OrderRepository extends JpaRepository<Order, Long> {
     // Найти последние N заказов пользователя
     List<Order> findTop10ByUserIdOrderByOrderDateDesc(Long userId);
 
-    // Найти заказы, содержащие определенный товар (через JPQL запрос)
+    // Найти заказы, содержащие определенный товар
     @Query("SELECT DISTINCT o FROM Order o JOIN o.items i WHERE i.product.id = :productId")
     List<Order> findByProductId(@Param("productId") Long productId);
-
-    // Найти заказы, содержащие определенный товар для конкретного пользователя
-    @Query("SELECT DISTINCT o FROM Order o JOIN o.items i WHERE o.user.id = :userId AND i.product.id = :productId")
-    List<Order> findByUserIdAndProductId(@Param("userId") Long userId, @Param("productId") Long productId);
 
     // Получить статистику по заказам пользователя
     @Query("SELECT COUNT(o), COALESCE(SUM(o.totalAmount), 0) FROM Order o WHERE o.user.id = :userId")
