@@ -4,7 +4,9 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.onlinestore.TestConfig;
 import com.onlinestore.dto.ProductDto;
 import com.onlinestore.model.Product;
+import com.onlinestore.model.User;
 import com.onlinestore.service.ProductService;
+import com.onlinestore.service.UserService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -35,10 +37,14 @@ public class SimpleControllerTest {
     @MockBean
     private ProductService productService;
 
+    @MockBean
+    private UserService userService;  // Добавляем мок для UserService
+
     @Autowired
     private ObjectMapper objectMapper;
 
     private Product product;
+    private User user;
     private LocalDateTime now;
 
     @BeforeEach
@@ -53,6 +59,11 @@ public class SimpleControllerTest {
         product.setQuantity(10);
         product.setCreatedAt(now);
         product.setUpdatedAt(now);
+
+        user = new User();
+        user.setId(1L);
+        user.setUsername("testuser");
+        user.setEmail("test@example.com");
     }
 
     @Test
@@ -129,5 +140,18 @@ public class SimpleControllerTest {
         mockMvc.perform(get("/test-json"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.message").value("OK"));
+    }
+
+    // Тесты для заказов (опционально)
+    @Test
+    void testCreateOrder() throws Exception {
+        when(userService.getUserById(1L)).thenReturn(user);
+        
+        String orderJson = "{\"userId\":1,\"shippingAddress\":\"Test Address\",\"items\":[{\"productId\":1,\"quantity\":2}]}";
+        
+        mockMvc.perform(post("/api/orders")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(orderJson))
+                .andExpect(status().isCreated());
     }
 }
