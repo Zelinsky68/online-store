@@ -54,8 +54,8 @@ public class SimpleControllerTest {
     @Autowired
     private ObjectMapper objectMapper;
 
-    private Product product;
-    private Product searchProduct;
+    private Product product1;
+    private Product product2;
     private User user;
     private Order order;
     private LocalDateTime now;
@@ -64,23 +64,23 @@ public class SimpleControllerTest {
     void setUp() {
         now = LocalDateTime.now();
 
-        product = new Product();
-        product.setId(1L);
-        product.setName("Test Product");
-        product.setDescription("Test Description");
-        product.setPrice(99.99);
-        product.setQuantity(10);
-        product.setCreatedAt(now);
-        product.setUpdatedAt(now);
+        product1 = new Product();
+        product1.setId(1L);
+        product1.setName("Test Product 1");
+        product1.setDescription("Description 1");
+        product1.setPrice(99.99);
+        product1.setQuantity(10);
+        product1.setCreatedAt(now);
+        product1.setUpdatedAt(now);
 
-        searchProduct = new Product();
-        searchProduct.setId(2L);
-        searchProduct.setName("Search Result Product");
-        searchProduct.setDescription("This is a search result");
-        searchProduct.setPrice(49.99);
-        searchProduct.setQuantity(5);
-        searchProduct.setCreatedAt(now);
-        searchProduct.setUpdatedAt(now);
+        product2 = new Product();
+        product2.setId(2L);
+        product2.setName("Search Result Product");
+        product2.setDescription("This product should be found by search");
+        product2.setPrice(49.99);
+        product2.setQuantity(5);
+        product2.setCreatedAt(now);
+        product2.setUpdatedAt(now);
 
         user = new User();
         user.setId(1L);
@@ -109,23 +109,23 @@ public class SimpleControllerTest {
 
     @Test
     void testGetAllProducts() throws Exception {
-        List<Product> products = Arrays.asList(product);
+        List<Product> products = Arrays.asList(product1, product2);
         when(productService.getAllProducts()).thenReturn(products);
 
         mockMvc.perform(get("/products"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$[0].id").value(1))
-                .andExpect(jsonPath("$[0].name").value("Test Product"));
+                .andExpect(jsonPath("$[0].name").value("Test Product 1"));
     }
 
     @Test
     void testGetProductById() throws Exception {
-        when(productService.getProductById(1L)).thenReturn(product);
+        when(productService.getProductById(1L)).thenReturn(product1);
 
         mockMvc.perform(get("/products/1"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.id").value(1))
-                .andExpect(jsonPath("$.name").value("Test Product"));
+                .andExpect(jsonPath("$.name").value("Test Product 1"));
     }
 
     @Test
@@ -138,44 +138,59 @@ public class SimpleControllerTest {
 
     @Test
     void testSearchProducts() throws Exception {
-        // Создаем список продуктов для поиска
-        List<Product> searchResults = Arrays.asList(searchProduct);
-        
-        // Настраиваем мок для возврата результатов поиска
-        when(productService.searchProducts(anyString())).thenReturn(searchResults);
+        // Настраиваем мок для getAllProducts (так как searchProducts использует его)
+        List<Product> allProducts = Arrays.asList(product1, product2);
+        when(productService.getAllProducts()).thenReturn(allProducts);
 
+        // Выполняем поиск
         mockMvc.perform(get("/products/search")
                 .param("keyword", "Search"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$[0].id").value(2))
                 .andExpect(jsonPath("$[0].name").value("Search Result Product"));
         
-        // Проверяем, что метод searchProducts был вызван с правильным параметром
-        verify(productService, times(1)).searchProducts("Search");
+        // Проверяем, что getAllProducts был вызван
+        verify(productService, times(1)).getAllProducts();
     }
 
     @Test
-    void testSearchProducts_EmptyResult() throws Exception {
-        // Настраиваем мок для возврата пустого списка
-        when(productService.searchProducts(anyString())).thenReturn(List.of());
+    void testSearchProducts_EmptyKeyword() throws Exception {
+        // Настраиваем мок для getAllProducts
+        List<Product> allProducts = Arrays.asList(product1, product2);
+        when(productService.getAllProducts()).thenReturn(allProducts);
 
+        // Поиск с пустым ключевым словом должен вернуть все продукты
+        mockMvc.perform(get("/products/search"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].id").value(1))
+                .andExpect(jsonPath("$[1].id").value(2));
+        
+        verify(productService, times(1)).getAllProducts();
+    }
+
+    @Test
+    void testSearchProducts_NoResults() throws Exception {
+        // Настраиваем мок для getAllProducts
+        when(productService.getAllProducts()).thenReturn(List.of());
+
+        // Поиск с ключевым словом должен вернуть пустой массив
         mockMvc.perform(get("/products/search")
                 .param("keyword", "Nonexistent"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$").isArray())
                 .andExpect(jsonPath("$").isEmpty());
         
-        verify(productService, times(1)).searchProducts("Nonexistent");
+        verify(productService, times(1)).getAllProducts();
     }
 
     @Test
     void testGetStats() throws Exception {
-        List<Product> products = Arrays.asList(product);
+        List<Product> products = Arrays.asList(product1, product2);
         when(productService.getAllProducts()).thenReturn(products);
 
         mockMvc.perform(get("/stats"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.totalProducts").value(1));
+                .andExpect(jsonPath("$.totalProducts").value(2));
     }
 
     @Test
@@ -195,7 +210,7 @@ public class SimpleControllerTest {
     @Test
     void testCreateOrder() throws Exception {
         when(userService.getUserById(1L)).thenReturn(user);
-        when(productRepository.findById(1L)).thenReturn(Optional.of(product));
+        when(productRepository.findById(1L)).thenReturn(Optional.of(product1));
         when(orderRepository.save(any(Order.class))).thenReturn(order);
         
         String orderJson = "{\"userId\":1,\"shippingAddress\":\"Test Address\",\"items\":[{\"productId\":1,\"quantity\":2}]}";
@@ -235,7 +250,7 @@ public class SimpleControllerTest {
     @Test
     void testCreateOrder_InsufficientStock() throws Exception {
         when(userService.getUserById(1L)).thenReturn(user);
-        when(productRepository.findById(1L)).thenReturn(Optional.of(product));
+        when(productRepository.findById(1L)).thenReturn(Optional.of(product1));
         
         String orderJson = "{\"userId\":1,\"shippingAddress\":\"Test Address\",\"items\":[{\"productId\":1,\"quantity\":100}]}";
         
@@ -267,7 +282,7 @@ public class SimpleControllerTest {
     @Test
     void testCancelOrder() throws Exception {
         when(orderRepository.findById(1L)).thenReturn(Optional.of(order));
-        when(productRepository.save(any(Product.class))).thenReturn(product);
+        when(productRepository.save(any(Product.class))).thenReturn(product1);
         
         mockMvc.perform(patch("/api/orders/1/cancel"))
                 .andExpect(status().isOk())
