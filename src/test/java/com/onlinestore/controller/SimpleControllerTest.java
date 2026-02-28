@@ -127,13 +127,22 @@ public class SimpleControllerTest {
 
     @Test
     void testSearchProducts() throws Exception {
-        List<Product> products = Arrays.asList(product);
+        // Создаем список продуктов с правильными полями
+        Product searchProduct = new Product();
+        searchProduct.setId(2L);
+        searchProduct.setName("Search Result");
+        searchProduct.setDescription("Search Description");
+        searchProduct.setPrice(49.99);
+        searchProduct.setQuantity(5);
+        
+        List<Product> products = Arrays.asList(searchProduct);
         when(productService.searchProducts("Test")).thenReturn(products);
 
         mockMvc.perform(get("/products/search")
                 .param("keyword", "Test"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$[0].name").value("Test Product"));
+                .andExpect(jsonPath("$[0].id").value(2))
+                .andExpect(jsonPath("$[0].name").value("Search Result"));
     }
 
     @Test
