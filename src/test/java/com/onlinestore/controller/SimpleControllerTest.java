@@ -5,8 +5,11 @@ import com.onlinestore.TestConfig;
 import com.onlinestore.dto.ProductDto;
 import com.onlinestore.model.Product;
 import com.onlinestore.model.User;
+import com.onlinestore.model.Order;
 import com.onlinestore.service.ProductService;
 import com.onlinestore.service.UserService;
+import com.onlinestore.repository.OrderRepository;
+import com.onlinestore.repository.ProductRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -20,6 +23,7 @@ import org.springframework.test.web.servlet.MockMvc;
 import java.time.LocalDateTime;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Optional;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
@@ -38,13 +42,20 @@ public class SimpleControllerTest {
     private ProductService productService;
 
     @MockBean
-    private UserService userService;  // Добавляем мок для UserService
+    private UserService userService;
+
+    @MockBean
+    private OrderRepository orderRepository;
+
+    @MockBean
+    private ProductRepository productRepository;
 
     @Autowired
     private ObjectMapper objectMapper;
 
     private Product product;
     private User user;
+    private Order order;
     private LocalDateTime now;
 
     @BeforeEach
@@ -64,6 +75,13 @@ public class SimpleControllerTest {
         user.setId(1L);
         user.setUsername("testuser");
         user.setEmail("test@example.com");
+
+        order = new Order();
+        order.setId(1L);
+        order.setUser(user);
+        order.setTotalAmount(99.99);
+        order.setStatus("PENDING");
+        order.setOrderDate(now);
     }
 
     @Test
@@ -142,16 +160,85 @@ public class SimpleControllerTest {
                 .andExpect(jsonPath("$.message").value("OK"));
     }
 
-    // Тесты для заказов (опционально)
     @Test
     void testCreateOrder() throws Exception {
         when(userService.getUserById(1L)).thenReturn(user);
+        when(productRepository.findById(1L)).thenReturn(Optional.of(product));
+        when(orderRepository.save(any(Order.class))).thenReturn(order);
         
         String orderJson = "{\"userId\":1,\"shippingAddress\":\"Test Address\",\"items\":[{\"productId\":1,\"quantity\":2}]}";
         
         mockMvc.perform(post("/api/orders")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(orderJson))
-                .andExpect(status().isCreated());
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.id").value(1));
+    }
+
+    @Test
+    void testCreateOrder_UserNotFound() throws Exception {
+        when(userService.getUserById(99L)).thenReturn(null);
+        
+        String orderJson = "{\"userId\":99,\"shippingAddress\":\"Test Address\",\"items\":[{\"productId\":1,\"quantity\":2}]}";
+        
+        mockMvc.perform(post("/api/orders")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(orderJson))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void testCreateOrder_ProductNotFound() throws Exception {
+        when(userService.getUserById(1L)).thenReturn(user);
+        when(productRepository.findById(99L)).thenReturn(Optional.empty());
+        
+        String orderJson = "{\"userId\":1,\"shippingAddress\":\"Test Address\",\"items\":[{\"productId\":99,\"quantity\":2}]}";
+        
+        mockMvc.perform(post("/api/orders")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(orderJson))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void testCreateOrder_InsufficientStock() throws Exception {
+        when(userService.getUserById(1L)).thenReturn(user);
+        when(productRepository.findById(1L)).thenReturn(Optional.of(product));
+        
+        String orderJson = "{\"userId\":1,\"shippingAddress\":\"Test Address\",\"items\":[{\"productId\":1,\"quantity\":100}]}";
+        
+        mockMvc.perform(post("/api/orders")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(orderJson))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void testGetOrdersByUser() throws Exception {
+        when(userService.getUserById(1L)).thenReturn(user);
+        when(orderRepository.findByUser(user)).thenReturn(Arrays.asList(order));
+        
+        mockMvc.perform(get("/api/orders/user/1"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].id").value(1));
+    }
+
+    @Test
+    void testGetOrderDetails() throws Exception {
+        when(orderRepository.findById(1L)).thenReturn(Optional.of(order));
+        
+        mockMvc.perform(get("/api/orders/1"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.id").value(1));
+    }
+
+    @Test
+    void testCancelOrder() throws Exception {
+        when(orderRepository.findById(1L)).thenReturn(Optional.of(order));
+        when(productRepository.save(any(Product.class))).thenReturn(product);
+        
+        mockMvc.perform(patch("/api/orders/1/cancel"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value("CANCELLED"));
     }
 }
