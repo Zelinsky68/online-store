@@ -50,9 +50,22 @@ public class SecurityConfig {
             .sessionManagement().sessionCreationPolicy(SessionCreationPolicy.STATELESS)
             .and()
             .authorizeRequests()
-                .antMatchers("/api/auth/**").permitAll()
+                // Публичные endpoint'ы
+                .antMatchers("/", "/test", "/health", "/info", "/ping").permitAll()
+                .antMatchers("/products", "/products/**").permitAll()
                 .antMatchers("/api/products/**").permitAll()
+                .antMatchers("/stats").permitAll()
+                
+                // Аутентификация
+                .antMatchers("/api/auth/**").permitAll()
+                
+                // Заказы (доступны всем аутентифицированным)
+                .antMatchers("/api/orders", "/api/orders/**").permitAll()
+                
+                // Админские endpoint'ы
                 .antMatchers("/api/admin/**").hasRole("ADMIN")
+                
+                // Все остальные требуют аутентификации
                 .anyRequest().authenticated()
             .and()
             .addFilterBefore(authenticationJwtTokenFilter(), UsernamePasswordAuthenticationFilter.class);
