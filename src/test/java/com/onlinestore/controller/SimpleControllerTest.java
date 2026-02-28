@@ -26,6 +26,7 @@ import java.util.List;
 import java.util.Optional;
 
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.*;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
@@ -54,6 +55,7 @@ public class SimpleControllerTest {
     private ObjectMapper objectMapper;
 
     private Product product;
+    private Product searchProduct;
     private User user;
     private Order order;
     private LocalDateTime now;
@@ -70,6 +72,15 @@ public class SimpleControllerTest {
         product.setQuantity(10);
         product.setCreatedAt(now);
         product.setUpdatedAt(now);
+
+        searchProduct = new Product();
+        searchProduct.setId(2L);
+        searchProduct.setName("Search Result Product");
+        searchProduct.setDescription("This is a search result");
+        searchProduct.setPrice(49.99);
+        searchProduct.setQuantity(5);
+        searchProduct.setCreatedAt(now);
+        searchProduct.setUpdatedAt(now);
 
         user = new User();
         user.setId(1L);
@@ -127,22 +138,34 @@ public class SimpleControllerTest {
 
     @Test
     void testSearchProducts() throws Exception {
-        // Создаем список продуктов с правильными полями
-        Product searchProduct = new Product();
-        searchProduct.setId(2L);
-        searchProduct.setName("Search Result");
-        searchProduct.setDescription("Search Description");
-        searchProduct.setPrice(49.99);
-        searchProduct.setQuantity(5);
+        // Создаем список продуктов для поиска
+        List<Product> searchResults = Arrays.asList(searchProduct);
         
-        List<Product> products = Arrays.asList(searchProduct);
-        when(productService.searchProducts("Test")).thenReturn(products);
+        // Настраиваем мок для возврата результатов поиска
+        when(productService.searchProducts(anyString())).thenReturn(searchResults);
 
         mockMvc.perform(get("/products/search")
-                .param("keyword", "Test"))
+                .param("keyword", "Search"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$[0].id").value(2))
-                .andExpect(jsonPath("$[0].name").value("Search Result"));
+                .andExpect(jsonPath("$[0].name").value("Search Result Product"));
+        
+        // Проверяем, что метод searchProducts был вызван с правильным параметром
+        verify(productService, times(1)).searchProducts("Search");
+    }
+
+    @Test
+    void testSearchProducts_EmptyResult() throws Exception {
+        // Настраиваем мок для возврата пустого списка
+        when(productService.searchProducts(anyString())).thenReturn(List.of());
+
+        mockMvc.perform(get("/products/search")
+                .param("keyword", "Nonexistent"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$").isArray())
+                .andExpect(jsonPath("$").isEmpty());
+        
+        verify(productService, times(1)).searchProducts("Nonexistent");
     }
 
     @Test
